@@ -48,12 +48,13 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
 	}
 	newmap = false;
 
+	//tree = (octomap::OcTree)octomap_wrapper::fullMsgToMap(wrapper);
 	tree = octomap_wrapper::binaryMsgToMap(wrapper);
 
 	treeGeom = new osg::Geometry();
 
-	osg::Vec4 color_occ_thres = osg::Vec4(0.0f, 1.0f, 0.59f, 1.0f);
-	osg::Vec4 color_occ = osg::Vec4(0.0f, 0.59f, 0.59f, 1.0f);
+	osg::Vec4 color_occ_thres = osg::Vec4(1.0f, 0, 0, 1.0f);
+	osg::Vec4 color_occ = osg::Vec4(1.0f, 0, 0, 1.0f);
 
 	osg::Vec4 color_emp_thres;
 	osg::Vec4 color_emp;
@@ -70,7 +71,9 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
 	osg::ref_ptr < osg::Vec4Array > colors(new osg::Vec4Array());
 	for (octomap::OcTree::tree_iterator it = tree->begin_tree(0), end =
 			tree->end_tree(); it != end; ++it) {
+		double x = it->getOccupancy();
 		if (it.isLeaf()) {
+
 			if (tree->isNodeOccupied(*it)) { // occupied voxels
 				if (tree->isNodeAtThreshold(*it)) {
 					vertices->push_back(
@@ -78,6 +81,7 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
 									it.getCoordinate().y(),
 									it.getCoordinate().z()));
 					// set a color
+					color_occ_thres = osg::Vec4(0, x, 0, 1.0f);
 					colors->push_back(color_occ_thres);
 				} else {
 					vertices->push_back(
@@ -85,6 +89,8 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
 									it.getCoordinate().y(),
 									it.getCoordinate().z()));
 					// set a color
+
+					//color_occ = osg::Vec4(x, 0, 0, 1.0f);
 					colors->push_back(color_occ);
 
 				}
@@ -95,6 +101,7 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
 									it.getCoordinate().y(),
 									it.getCoordinate().z()));
 					// set a color
+					color_emp_thres = osg::Vec4(x, 1.0f, 1.0f, 1.0f);
 					colors->push_back(color_emp_thres);
 				} else {
 					vertices->push_back(
@@ -102,6 +109,7 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
 									it.getCoordinate().y(),
 									it.getCoordinate().z()));
 					// set a color
+					color_emp = osg::Vec4(x, 1.0f, 1.0f, 1.0f);
 					colors->push_back(color_emp);
 				}
 			}
