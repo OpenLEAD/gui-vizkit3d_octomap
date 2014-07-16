@@ -14,13 +14,103 @@
 
 using namespace vizkit;
 
+void drawBox(osg::ref_ptr<osg::Vec3Array> vertices,
+		osg::ref_ptr<osg::Vec3Array> normals,
+		osg::ref_ptr<osg::Vec4Array> colors, const osg::Vec3& position,
+		double size, const osg::Vec4& color, const osg::Vec3& normal) {
+	const double xp = position.x();
+	const double yp = position.y();
+	const double zp = position.z();
+
+	double eps = 1e-5;
+
+	const double xs = size - eps;
+	const double ys = size - eps;
+	const double zs = size - eps;
+
+	vertices->push_back(osg::Vec3(xp - xs * 0.5, yp - ys * 0.5, zp + zs * 0.5));
+	vertices->push_back(osg::Vec3(xp + xs * 0.5, yp - ys * 0.5, zp + zs * 0.5));
+	vertices->push_back(osg::Vec3(xp + xs * 0.5, yp + ys * 0.5, zp + zs * 0.5));
+	vertices->push_back(osg::Vec3(xp - xs * 0.5, yp + ys * 0.5, zp + zs * 0.5));
+	for (size_t i = 0; i < 4; i++) {
+		normals->push_back(normal);
+		colors->push_back(color);
+	}
+
+	if (zs > 0.0) {
+		vertices->push_back(
+				osg::Vec3(xp - xs * 0.5, yp - ys * 0.5, zp + zs * 0.5));
+		vertices->push_back(
+				osg::Vec3(xp + xs * 0.5, yp - ys * 0.5, zp + zs * 0.5));
+		vertices->push_back(
+				osg::Vec3(xp + xs * 0.5, yp - ys * 0.5, zp - zs * 0.5));
+		vertices->push_back(
+				osg::Vec3(xp - xs * 0.5, yp - ys * 0.5, zp - zs * 0.5));
+		for (size_t i = 0; i < 4; i++) {
+			normals->push_back(osg::Vec3(0, -1.0, 0));
+			colors->push_back(color);
+		}
+
+		vertices->push_back(
+				osg::Vec3(xp + xs * 0.5, yp - ys * 0.5, zp + zs * 0.5));
+		vertices->push_back(
+				osg::Vec3(xp + xs * 0.5, yp + ys * 0.5, zp + zs * 0.5));
+		vertices->push_back(
+				osg::Vec3(xp + xs * 0.5, yp + ys * 0.5, zp - zs * 0.5));
+		vertices->push_back(
+				osg::Vec3(xp + xs * 0.5, yp - ys * 0.5, zp - zs * 0.5));
+		for (size_t i = 0; i < 4; i++) {
+			normals->push_back(osg::Vec3(1.0, 0, 0));
+			colors->push_back(color);
+		}
+
+		vertices->push_back(
+				osg::Vec3(xp + xs * 0.5, yp + ys * 0.5, zp + zs * 0.5));
+		vertices->push_back(
+				osg::Vec3(xp - xs * 0.5, yp + ys * 0.5, zp + zs * 0.5));
+		vertices->push_back(
+				osg::Vec3(xp - xs * 0.5, yp + ys * 0.5, zp - zs * 0.5));
+		vertices->push_back(
+				osg::Vec3(xp + xs * 0.5, yp + ys * 0.5, zp - zs * 0.5));
+		for (size_t i = 0; i < 4; i++) {
+			normals->push_back(osg::Vec3(0, 1.0, 0));
+			colors->push_back(color);
+		}
+
+		vertices->push_back(
+				osg::Vec3(xp - xs * 0.5, yp + ys * 0.5, zp + zs * 0.5));
+		vertices->push_back(
+				osg::Vec3(xp - xs * 0.5, yp - ys * 0.5, zp + zs * 0.5));
+		vertices->push_back(
+				osg::Vec3(xp - xs * 0.5, yp - ys * 0.5, zp - zs * 0.5));
+		vertices->push_back(
+				osg::Vec3(xp - xs * 0.5, yp + ys * 0.5, zp - zs * 0.5));
+		for (size_t i = 0; i < 4; i++) {
+			normals->push_back(osg::Vec3(-1.0, 0, 0));
+			colors->push_back(color);
+		}
+
+		vertices->push_back(
+				osg::Vec3(xp - xs * 0.5, yp - ys * 0.5, zp - zs * 0.5));
+		vertices->push_back(
+				osg::Vec3(xp + xs * 0.5, yp - ys * 0.5, zp - zs * 0.5));
+		vertices->push_back(
+				osg::Vec3(xp + xs * 0.5, yp + ys * 0.5, zp - zs * 0.5));
+		vertices->push_back(
+				osg::Vec3(xp - xs * 0.5, yp + ys * 0.5, zp - zs * 0.5));
+		for (size_t i = 0; i < 4; i++) {
+			normals->push_back(osg::Vec3(0, 0, -1.0));
+			colors->push_back(color);
+		}
+	}
+}
+
 OctomapWrapperVisualization::OctomapWrapperVisualization() {
 	treeOrientation = Eigen::Quaterniond::Identity();
 	treePosition.setZero();
 	newmap = true;
 	colorize = false;
 
-	vertices = new osg::Vec3Array();
 	std::cout << "constructor" << std::endl;
 }
 
@@ -48,85 +138,64 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
 	}
 	newmap = false;
 
-	//tree = (octomap::OcTree)octomap_wrapper::fullMsgToMap(wrapper);
 	tree = octomap_wrapper::binaryMsgToMap(wrapper);
 
-	treeGeom = new osg::Geometry();
+	//delete wrapper;
+
+	osg::Vec3 hnormal = osg::Vec3(0, 0, 1.0);
+
+	osg::ref_ptr<osg::Geometry> geom = new osg::Geometry;
+	osg::ref_ptr < osg::Vec4Array > color = new osg::Vec4Array;
+	osg::ref_ptr < osg::Vec3Array > vertices = new osg::Vec3Array;
+	osg::ref_ptr < osg::Vec3Array > normals = new osg::Vec3Array;
 
 	osg::Vec4 color_occ_thres = osg::Vec4(1.0f, 0, 0, 1.0f);
 	osg::Vec4 color_occ = osg::Vec4(1.0f, 0, 0, 1.0f);
 
-	osg::Vec4 color_emp_thres;
-	osg::Vec4 color_emp;
+	osg::Vec4 color_emp_thres = osg::Vec4(0.0f, 1.0f, 0.0f, 1.0f);
+	osg::Vec4 color_emp = osg::Vec4(0.0f, 1.0f, 0.0f, 1.0f);
 
-	if (colorize) {
-		color_emp_thres = osg::Vec4(1.0f, 0.0f, 0.0f, 1.0f);
-		color_emp = osg::Vec4(1.0f, 0.0f, 0.0f, 1.0f);
-	} else {
-		osg::Vec4 color_emp_thres = osg::Vec4(1.0f, 0.0f, 1.0f, 0.1f);
-		osg::Vec4 color_emp = osg::Vec4(1.0f, 0.0f, 1.0f, 0.1f);
-	}
-
-	vertices->clear();
-	osg::ref_ptr < osg::Vec4Array > colors(new osg::Vec4Array());
 	for (octomap::OcTree::tree_iterator it = tree->begin_tree(0), end =
 			tree->end_tree(); it != end; ++it) {
-		double x = it->getOccupancy();
+		//double x = it->getOccupancy();
+		osg::Vec3 coordinate = osg::Vec3(it.getX(), it.getY(), it.getZ());
+
 		if (it.isLeaf()) {
 
 			if (tree->isNodeOccupied(*it)) { // occupied voxels
 				if (tree->isNodeAtThreshold(*it)) {
-					vertices->push_back(
-							osg::Vec3(it.getCoordinate().x(),
-									it.getCoordinate().y(),
-									it.getCoordinate().z()));
-					// set a color
-					color_occ_thres = osg::Vec4(0, x, 0, 1.0f);
-					colors->push_back(color_occ_thres);
+					drawBox(vertices, normals, color, coordinate, it.getSize(),
+							color_occ_thres, hnormal);
+
 				} else {
-					vertices->push_back(
-							osg::Vec3(it.getCoordinate().x(),
-									it.getCoordinate().y(),
-									it.getCoordinate().z()));
-					// set a color
-
-					//color_occ = osg::Vec4(x, 0, 0, 1.0f);
-					colors->push_back(color_occ);
-
+					drawBox(vertices, normals, color, coordinate, it.getSize(),
+							color_occ, hnormal);
 				}
 			} else {
 				if (tree->isNodeAtThreshold(*it)) {
-					vertices->push_back(
-							osg::Vec3(it.getCoordinate().x(),
-									it.getCoordinate().y(),
-									it.getCoordinate().z()));
-					// set a color
-					color_emp_thres = osg::Vec4(x, 1.0f, 1.0f, 1.0f);
-					colors->push_back(color_emp_thres);
+					drawBox(vertices, normals, color, coordinate, it.getSize(),
+							color_emp_thres, hnormal);
 				} else {
-					vertices->push_back(
-							osg::Vec3(it.getCoordinate().x(),
-									it.getCoordinate().y(),
-									it.getCoordinate().z()));
-					// set a color
-					color_emp = osg::Vec4(x, 1.0f, 1.0f, 1.0f);
-					colors->push_back(color_emp);
+					drawBox(vertices, normals, color, coordinate, it.getSize(),
+							color_emp, hnormal);
 				}
 			}
 		}
 	}
+	geom->setVertexArray(vertices);
+	osg::ref_ptr < osg::DrawArrays > drawArrays = new osg::DrawArrays(
+			osg::PrimitiveSet::QUADS, 0, vertices->size());
+	geom->addPrimitiveSet(drawArrays.get());
 
-	treeGeom->setVertexArray(vertices.get());
-	treeGeom->setColorArray(colors.get());
-	treeGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
+	geom->setNormalArray(normals);
+	geom->setNormalBinding(osg::Geometry::BIND_PER_VERTEX);
 
-	treeGeom->addPrimitiveSet(
-			new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0,
-					vertices->size()));
+	geom->setColorArray(color.get());
+	geom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
 
-	treeNode->addDrawable(treeGeom.get());
-	osg::StateSet* state = treeGeom->getOrCreateStateSet();
-	state->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
+	treeNode->addDrawable(geom.get());
+
+	delete tree;
 
 }
 

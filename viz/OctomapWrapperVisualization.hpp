@@ -44,7 +44,7 @@ namespace vizkit
         osg::ref_ptr<osg::Geode> treeNode;
         osg::ref_ptr<osg::Geometry> treeGeom;
 
-        osg::ref_ptr < osg::Vec3Array > vertices;
+        //osg::ref_ptr < osg::Vec3Array > vertices;
         bool newmap;
 
         bool colorize;
