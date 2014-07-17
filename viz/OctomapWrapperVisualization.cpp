@@ -12,6 +12,8 @@
 
 #include <vizkit/Vizkit3DHelper.hpp>
 
+#include <time.h>
+
 using namespace vizkit;
 
 void drawBox(osg::ref_ptr<osg::Vec3Array> vertices,
@@ -194,6 +196,8 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
 	geom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
 
 	treeNode->addDrawable(geom.get());
+
+	usleep(1);
 
 	delete tree;
 
