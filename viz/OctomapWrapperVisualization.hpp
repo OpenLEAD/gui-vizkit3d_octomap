@@ -1,8 +1,7 @@
 #ifndef vizkit_3d_octomap_OctomapWrapperVisualization_H
 #define vizkit_3d_octomap_OctomapWrapperVisualization_H
 
-#include <boost/noncopyable.hpp>
-#include <vizkit/Vizkit3DPlugin.hpp>
+#include <vizkit3d/Vizkit3DPlugin.hpp>
 
 #include <octomap_wrapper/OctomapWrapper.hpp>
 #include <octomap_wrapper/conversion.hpp>
@@ -14,10 +13,10 @@ namespace osg {
     class Geometry;
 }
 
-namespace vizkit
+namespace vizkit3d
 {
     class OctomapWrapperVisualization
-        : public vizkit::Vizkit3DPlugin<octomap_wrapper::OctomapWrapper>
+        : public Vizkit3DPlugin<octomap_wrapper::OctomapWrapper>
     {
     Q_OBJECT
     public:

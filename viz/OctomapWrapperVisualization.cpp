@@ -10,9 +10,9 @@
 
 #include <osg/ShapeDrawable>
 
-#include <vizkit/Vizkit3DHelper.hpp>
+#include <vizkit3d/Vizkit3DHelper.hpp>
 
-using namespace vizkit;
+using namespace vizkit3d;
 
 void drawBox(osg::ref_ptr<osg::Vec3Array> vertices,
 		osg::ref_ptr<osg::Vec3Array> normals,
