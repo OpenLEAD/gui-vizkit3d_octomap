@@ -4,10 +4,8 @@
 #include <vizkit3d/Vizkit3DPlugin.hpp>
 
 #include <octomap_wrapper/OctomapWrapper.hpp>
-#include <octomap_wrapper/conversion.hpp>
-#include "octomap/OcTree.h"
-#include "octomap/AbstractOcTree.h"
-
+#include <octomap/OcTree.h>
+#include <Eigen/Geometry>
 
 namespace osg {
     class Geometry;
@@ -23,8 +21,11 @@ namespace vizkit3d
         OctomapWrapperVisualization();
         ~OctomapWrapperVisualization();
 
-    Q_INVOKABLE void updateData(octomap_wrapper::OctomapWrapper const &sample)
-    {vizkit::Vizkit3DPlugin<octomap_wrapper::OctomapWrapper>::updateData(sample);}
+        Q_INVOKABLE void updateData(octomap_wrapper::OctomapWrapper const &sample)
+        {
+            vizkit3d::Vizkit3DPlugin<octomap_wrapper::OctomapWrapper>::updateData(sample);
+        }
+
 
     protected:
         virtual osg::ref_ptr<osg::Node> createMainNode();

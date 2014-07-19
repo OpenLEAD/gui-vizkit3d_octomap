@@ -6,7 +6,8 @@
 #include <osg/Geode>
 #include <osg/Geometry>
 #include <osg/Point>
-#include <base/eigen.h>
+#include <base/Eigen.hpp>
+#include <octomap_wrapper/Conversion.hpp>
 
 #include <osg/ShapeDrawable>
 
