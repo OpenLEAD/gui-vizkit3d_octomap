@@ -1,0 +1,33 @@
+#! /usr/bin/env ruby
+require 'vizkit'
+require 'orocos'
+
+path = ARGV.shift
+if !path
+    STDERR.puts "test.rb PATH_TO_OCTOMAP"
+    exit 1
+elsif !File.exists?(path)
+    STDERR.puts "#{path} is not an octomap file"
+    exit 1
+end
+
+viz = Vizkit.default_loader.OctomapWrapperVisualization
+Orocos.initialize
+
+Orocos.run 'octomap::FromFileTask' => 'octomap_producer' do
+    producer = Orocos.get 'octomap_producer'
+
+    producer.path = path
+    producer.configure
+
+    producer.octomap.to_async.on_data do |sample|
+        if producer.running?
+            viz.updateData(sample)
+            producer.stop
+        end
+    end
+    
+    producer.start
+    Vizkit.exec
+end
+
