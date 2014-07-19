@@ -109,7 +109,6 @@ OctomapWrapperVisualization::OctomapWrapperVisualization() {
 	treeOrientation = Eigen::Quaterniond::Identity();
 	treePosition.setZero();
 	newmap = true;
-	colorize = false;
 
 	std::cout << "constructor" << std::endl;
 }
