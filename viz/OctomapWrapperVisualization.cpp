@@ -138,7 +138,6 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
 	}
 	newmap = false;
 
-	tree = octomap_wrapper::binaryMsgToMap(wrapper);
 
 	//delete wrapper;
 
@@ -195,17 +194,13 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
 
 	treeNode->addDrawable(geom.get());
 
-	delete tree;
-
 }
 
 void OctomapWrapperVisualization::updateDataIntern(
 		octomap_wrapper::OctomapWrapper const& value) {
 
-	wrapper.binary = value.binary;
-	wrapper.id = value.id;
-	wrapper.resolution = value.resolution;
-	wrapper.data = value.data;
+        delete tree;
+	tree = octomap_wrapper::binaryMsgToMap(value);
 }
 
 //Macro that makes this plugin loadable in ruby, this is optional.

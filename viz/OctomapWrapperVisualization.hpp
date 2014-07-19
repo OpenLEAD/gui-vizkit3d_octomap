@@ -36,7 +36,6 @@ namespace vizkit
 
         osg::ref_ptr<osg::Node> drawpoints();
 
-        octomap_wrapper::OctomapWrapper wrapper;
         octomap::OcTree* tree;
         Eigen::Vector3d treePosition;
         Eigen::Quaterniond treeOrientation; // TODO acho q nao vou precisar
