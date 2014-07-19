@@ -34,12 +34,6 @@ namespace vizkit3d
         
     private:
         octomap::OcTree* tree;
-        Eigen::Vector3d treePosition;
-        Eigen::Quaterniond treeOrientation; // TODO acho q nao vou precisar
-        osg::ref_ptr< osg::PositionAttitudeTransform > transformNode;
-        osg::ref_ptr<osg::Geode> treeNode;
-        osg::ref_ptr<osg::Geometry> treeGeom;
-        bool newmap;
     };
 }
 #endif
