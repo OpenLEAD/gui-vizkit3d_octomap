@@ -16,10 +16,10 @@
 using namespace vizkit3d;
 
 void drawBox(osg::Vec3Array& vertices,
-		osg::Vec4Array& colors,
+		osg::FloatArray& probabilities,
                 osg::DrawElementsUInt& indices,
                 const osg::Vec3& position,
-		double size, const osg::Vec4& color) {
+		double size, double probability) {
 	const double xp = position.x();
 	const double yp = position.y();
 	const double zp = position.z();
@@ -41,7 +41,7 @@ void drawBox(osg::Vec3Array& vertices,
 	vertices.push_back(osg::Vec3(xp + xs * 0.5, yp + ys * 0.5, zp + zs * 0.5));
 
 	for (size_t i = 0; i < 8; i++) {
-            colors.push_back(color);
+            probabilities.push_back(probability);
 	}
 
         unsigned int relativeIndices[] = {
@@ -69,69 +69,76 @@ OctomapWrapperVisualization::~OctomapWrapperVisualization() {
         delete tree;
 }
 
-osg::ref_ptr<osg::Node> OctomapWrapperVisualization::createMainNode() {
-        osg::Geode* root = new osg::Geode;
-	osg::Geometry* geom = new osg::Geometry;
-        root->addDrawable(geom);
-	return root;
+static void setupShaders130(osg::Geometry* geometry)
+{
+    osg::StateSet *ss = geometry->getOrCreateStateSet();
+    osg::Program* program = new osg::Program;
+    program->setName( "colorize" );
+    program->addBindAttribLocation( "in_Position", 0 );
+    program->addBindAttribLocation( "in_Probability", 1 );
+    program->addShader( osg::Shader::readShaderFile( osg::Shader::VERTEX, SHADER_DIR "/Octomap.vert" ) );
+    program->addShader( osg::Shader::readShaderFile( osg::Shader::FRAGMENT, SHADER_DIR "/Octomap.frag" ) );
+    ss->setAttributeAndModes(program, osg::StateAttribute::ON);
 
+    osg::Uniform* fullColor   =
+        new osg::Uniform( "colorEmpty", osg::Vec4(0, 1, 0, 1));
+    ss->addUniform( fullColor );
+    osg::Uniform* emptyColor   =
+        new osg::Uniform( "colorFull", osg::Vec4(1, 0, 0, 1));
+    ss->addUniform( emptyColor );
+    osg::Uniform* threshold   =
+        new osg::Uniform( "occupiedThreshold", 0.8f);
+    ss->addUniform( threshold );
 }
+
+osg::ref_ptr<osg::Node> OctomapWrapperVisualization::createMainNode() {
+    osg::Geode* root = new osg::Geode;
+    osg::Geometry* geom = new osg::Geometry;
+    setupShaders130(geom);
+    root->addDrawable(geom);
+    return root;
+}
+
 void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
-        osg::Geode* treeNode = dynamic_cast<osg::Geode*>(node);
-        if (!tree)
-            return;
+    osg::Geode* treeNode = dynamic_cast<osg::Geode*>(node);
+    if (!tree)
+        return;
 
-	osg::ref_ptr<osg::Geometry> geom = dynamic_cast<osg::Geometry*>(treeNode->getDrawable(0));
+    osg::ref_ptr<osg::Geometry> geom =
+        dynamic_cast<osg::Geometry*>(treeNode->getDrawable(0));
 
-	osg::ref_ptr < osg::Vec3Array > vertices = new osg::Vec3Array;
-	osg::ref_ptr < osg::Vec4Array > color = new osg::Vec4Array;
-        color->setBinding(osg::Array::BIND_PER_VERTEX);
+    osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
+    osg::ref_ptr<osg::FloatArray> probabilities = new osg::FloatArray;
+    probabilities->setBinding(osg::Array::BIND_PER_VERTEX);
+    osg::ref_ptr < osg::DrawElementsUInt > draw =
+        new osg::DrawElementsUInt(osg::PrimitiveSet::TRIANGLES);
 
-	osg::Vec4 color_occ_thres = osg::Vec4(1.0f, 0, 0, 1.0f);
-	osg::Vec4 color_occ = osg::Vec4(1.0f, 0, 0, 1.0f);
+    unsigned int count = 0;
 
-	osg::Vec4 color_emp_thres = osg::Vec4(0.0f, 1.0f, 0.0f, 1.0f);
-	osg::Vec4 color_emp = osg::Vec4(0.0f, 1.0f, 0.0f, 1.0f);
-	osg::ref_ptr < osg::DrawElementsUInt > draw =
-            new osg::DrawElementsUInt(osg::PrimitiveSet::TRIANGLES);
+    // Documentation states that getting the end leaf iterator is expensive
+    // and should be done really only once
+    octomap::OcTree::leaf_iterator const end_it = tree->end_leafs();
+    for (octomap::OcTree::leaf_iterator it = tree->begin_leafs(0); it != end_it; ++it) {
+        osg::Vec3 coordinate = osg::Vec3(it.getX(), it.getY(), it.getZ());
+        drawBox(*vertices, *probabilities, *draw, coordinate, it.getSize(), it->getOccupancy());
 
-        unsigned int count = 0;
-
-        // Documentation states that getting the end leaf iterator is expensive
-        // and should be done really only once
-        octomap::OcTree::leaf_iterator const end_it = tree->end_leafs();
-	for (octomap::OcTree::leaf_iterator it = tree->begin_leafs(0); it != end_it; ++it) {
-                osg::Vec3 coordinate = osg::Vec3(it.getX(), it.getY(), it.getZ());
-                osg::Vec4 cell_color;
-
-                if (tree->isNodeOccupied(*it)) { // occupied voxels
-                        if (tree->isNodeAtThreshold(*it))
-                                cell_color = color_occ_thres;
-                        else
-                                cell_color = color_occ;
-                } else {
-                        if (tree->isNodeAtThreshold(*it)) {
-                                cell_color = color_emp_thres;
-                        } else {
-                                cell_color = color_emp;
-                        }
-                }
-                drawBox(*vertices, *color, *draw, coordinate, it.getSize(), cell_color);
-
-                if (++count > 50000)
-                    break;
-	}
-        std::cout << "cell count: " << count << std::endl;
-	geom->setVertexArray(vertices);
-	geom->setColorArray(color.get());
-	geom->addPrimitiveSet(draw.get());
+        if (++count > 400000)
+            break;
+    }
+    std::cout << "cell count: " << count << std::endl;
+    geom->addPrimitiveSet(draw.get());
+    geom->setVertexAttribArray(0, vertices, osg::Array::BIND_PER_VERTEX);
+    geom->setVertexAttribArray(1, probabilities, osg::Array::BIND_PER_VERTEX);
+    osg::StateSet *ss = geom->getOrCreateStateSet();
+    osg::Uniform* threshold = ss->getUniform("occupiedThreshold");
+    threshold->set(static_cast<float>(tree->getClampingThresMax()));
 }
 
 void OctomapWrapperVisualization::updateDataIntern(
-		octomap_wrapper::OctomapWrapper const& value) {
+        octomap_wrapper::OctomapWrapper const& value) {
 
-        delete tree;
-	tree = octomap_wrapper::binaryMsgToMap(value);
+    delete tree;
+    tree = octomap_wrapper::binaryMsgToMap(value);
 }
 
 //Macro that makes this plugin loadable in ruby, this is optional.
