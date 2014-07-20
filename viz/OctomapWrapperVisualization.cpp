@@ -163,7 +163,7 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
 
     // And update the occupation threshold
     osg::Uniform* threshold = ss->getUniform("occupiedThreshold");
-    threshold->set(static_cast<float>(tree->getClampingThresMax()));
+    threshold->set(static_cast<float>(tree->getClampingThresMax()) - 0.01f);
     osg::Uniform* resolution = ss->getUniform("resolution");
     resolution->set(static_cast<float>(tree->getResolution()));
 }
