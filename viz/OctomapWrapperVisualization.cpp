@@ -10,56 +10,70 @@
 #include <octomap_wrapper/Conversion.hpp>
 
 #include <osg/ShapeDrawable>
+#include <osg/TextureRectangle>
 
 #include <vizkit3d/Vizkit3DHelper.hpp>
 
 using namespace vizkit3d;
 
-void drawBox(osg::Vec3Array& vertices,
-		osg::FloatArray& probabilities,
-                osg::DrawElementsUInt& indices,
-                const osg::Vec3& position,
-		double size, double probability) {
-	const double xp = position.x();
-	const double yp = position.y();
-	const double zp = position.z();
+void encodeData(osg::StateSet& stateSet,
+        unsigned int numInstances,
+        std::vector<float> const& cellData)
+{
+    unsigned int const texLineSize = 1024u;
+    unsigned int const vectorsPerSample = 2;
+    unsigned int const dataSamplesPerLine = texLineSize / vectorsPerSample;
 
-	const double eps = 1e-5;
+    if (cellData.size() != numInstances * vectorsPerSample * 4)
+        throw std::logic_error("cellData and numInstances mismatch");
 
-	const double xs = size - eps;
-	const double ys = size - eps;
-	const double zs = size - eps;
+    unsigned int height = (numInstances + dataSamplesPerLine - 1) / dataSamplesPerLine;
+    osg::ref_ptr<osg::Image> image = new osg::Image;
+    image->allocateImage(texLineSize, height, 1, GL_RGBA, GL_FLOAT);
+    image->setInternalTextureFormat(GL_RGBA32F_ARB);
 
-        const unsigned int baseIndex = vertices.size();
-	vertices.push_back(osg::Vec3(xp - xs * 0.5, yp - ys * 0.5, zp - zs * 0.5));
-	vertices.push_back(osg::Vec3(xp + xs * 0.5, yp - ys * 0.5, zp - zs * 0.5));
-	vertices.push_back(osg::Vec3(xp - xs * 0.5, yp + ys * 0.5, zp - zs * 0.5));
-	vertices.push_back(osg::Vec3(xp + xs * 0.5, yp + ys * 0.5, zp - zs * 0.5));
-	vertices.push_back(osg::Vec3(xp - xs * 0.5, yp - ys * 0.5, zp + zs * 0.5));
-	vertices.push_back(osg::Vec3(xp + xs * 0.5, yp - ys * 0.5, zp + zs * 0.5));
-	vertices.push_back(osg::Vec3(xp - xs * 0.5, yp + ys * 0.5, zp + zs * 0.5));
-	vertices.push_back(osg::Vec3(xp + xs * 0.5, yp + ys * 0.5, zp + zs * 0.5));
+    float * data = (float*)image->data(0);
+    memcpy(data, &cellData[0], sizeof(float) * cellData.size());
 
-	for (size_t i = 0; i < 8; i++) {
-            probabilities.push_back(probability);
-	}
+    osg::ref_ptr<osg::TextureRectangle> texture = new osg::TextureRectangle(image);
+    texture->setInternalFormat(GL_RGBA32F_ARB);
+    texture->setSourceFormat(GL_RGBA);
+    texture->setSourceType(GL_FLOAT);
+    texture->setTextureSize(2, numInstances);
+    texture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::NEAREST);
+    texture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::NEAREST);
+    texture->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_BORDER);
+    texture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_BORDER);
+    stateSet.setTextureAttributeAndModes(1, texture, osg::StateAttribute::ON);
+    stateSet.addUniform(new osg::Uniform("cellData", 1));
+}
 
-        unsigned int relativeIndices[] = {
-            0, 2, 1,
-            2, 3, 1,
-            1, 3, 5,
-            3, 7, 5,
-            7, 4, 5,
-            7, 6, 4,
-            6, 0, 4,
-            6, 2, 0,
-            0, 4, 1,
-            4, 5, 1,
-            3, 7, 2,
-            7, 6, 2
-        };
-        for (int i = 0; i < 12 * 3; ++i)
-            indices.addElement(baseIndex + relativeIndices[i]);
+void drawBox(osg::Vec3Array& vertices, osg::DrawElementsUInt& indices) {
+    vertices.push_back(osg::Vec3(-0.5, -0.5, -0.5));
+    vertices.push_back(osg::Vec3(+0.5, -0.5, -0.5));
+    vertices.push_back(osg::Vec3(-0.5, +0.5, -0.5));
+    vertices.push_back(osg::Vec3(+0.5, +0.5, -0.5));
+    vertices.push_back(osg::Vec3(-0.5, -0.5, +0.5));
+    vertices.push_back(osg::Vec3(+0.5, -0.5, +0.5));
+    vertices.push_back(osg::Vec3(-0.5, +0.5, +0.5));
+    vertices.push_back(osg::Vec3(+0.5, +0.5, +0.5));
+
+    unsigned int relativeIndices[] = {
+        0, 2, 1,
+        2, 3, 1,
+        1, 3, 5,
+        3, 7, 5,
+        7, 4, 5,
+        7, 6, 4,
+        6, 0, 4,
+        6, 2, 0,
+        0, 4, 1,
+        4, 5, 1,
+        3, 7, 2,
+        7, 6, 2
+    };
+    for (int i = 0; i < 12 * 3; ++i)
+        indices.addElement(relativeIndices[i]);
 }
 
 OctomapWrapperVisualization::OctomapWrapperVisualization()
@@ -75,7 +89,6 @@ static void setupShaders130(osg::Geometry* geometry)
     osg::Program* program = new osg::Program;
     program->setName( "colorize" );
     program->addBindAttribLocation( "in_Position", 0 );
-    program->addBindAttribLocation( "in_Probability", 1 );
     program->addShader( osg::Shader::readShaderFile( osg::Shader::VERTEX, SHADER_DIR "/Octomap.vert" ) );
     program->addShader( osg::Shader::readShaderFile( osg::Shader::FRAGMENT, SHADER_DIR "/Octomap.frag" ) );
     ss->setAttributeAndModes(program, osg::StateAttribute::ON);
@@ -89,12 +102,23 @@ static void setupShaders130(osg::Geometry* geometry)
     osg::Uniform* threshold   =
         new osg::Uniform( "occupiedThreshold", 0.8f);
     ss->addUniform( threshold );
+    osg::Uniform* resolution   =
+        new osg::Uniform( "resolution", 0.1f);
+    ss->addUniform( resolution );
 }
 
 osg::ref_ptr<osg::Node> OctomapWrapperVisualization::createMainNode() {
     osg::Geode* root = new osg::Geode;
     osg::Geometry* geom = new osg::Geometry;
     setupShaders130(geom);
+    // Build the template geometry (a cube !)
+    osg::ref_ptr < osg::DrawElementsUInt > draw =
+        new osg::DrawElementsUInt(osg::PrimitiveSet::TRIANGLES);
+    osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
+    drawBox(*vertices, *draw);
+    geom->setVertexAttribArray(0, vertices, osg::Array::BIND_PER_VERTEX);
+    draw->setNumInstances(0);
+    geom->addPrimitiveSet(draw.get());
     root->addDrawable(geom);
     return root;
 }
@@ -107,11 +131,9 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
     osg::ref_ptr<osg::Geometry> geom =
         dynamic_cast<osg::Geometry*>(treeNode->getDrawable(0));
 
-    osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
-    osg::ref_ptr<osg::FloatArray> probabilities = new osg::FloatArray;
-    probabilities->setBinding(osg::Array::BIND_PER_VERTEX);
-    osg::ref_ptr < osg::DrawElementsUInt > draw =
-        new osg::DrawElementsUInt(osg::PrimitiveSet::TRIANGLES);
+    // We encode the data as [x,y,z,s,p,0] where s is the size in cells and p the
+    // probability
+    std::vector<float> cellData;
 
     unsigned int count = 0;
 
@@ -119,19 +141,31 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
     // and should be done really only once
     octomap::OcTree::leaf_iterator const end_it = tree->end_leafs();
     for (octomap::OcTree::leaf_iterator it = tree->begin_leafs(0); it != end_it; ++it) {
-        osg::Vec3 coordinate = osg::Vec3(it.getX(), it.getY(), it.getZ());
-        drawBox(*vertices, *probabilities, *draw, coordinate, it.getSize(), it->getOccupancy());
+        cellData.push_back(it.getX());
+        cellData.push_back(it.getY());
+        cellData.push_back(it.getZ());
+        cellData.push_back(0);
 
-        if (++count > 400000)
-            break;
+        cellData.push_back(it.getSize());
+        cellData.push_back(it->getOccupancy());
+        cellData.push_back(0);
+        cellData.push_back(0);
+
+        ++count;
     }
-    std::cout << "cell count: " << count << std::endl;
-    geom->addPrimitiveSet(draw.get());
-    geom->setVertexAttribArray(0, vertices, osg::Array::BIND_PER_VERTEX);
-    geom->setVertexAttribArray(1, probabilities, osg::Array::BIND_PER_VERTEX);
+
+    geom->getPrimitiveSet(0)->setNumInstances(count);
+    geom->setUseDisplayList(false);
+    geom->setUseVertexBufferObjects(true);
+
     osg::StateSet *ss = geom->getOrCreateStateSet();
+    encodeData(*ss, count, cellData);
+
+    // And update the occupation threshold
     osg::Uniform* threshold = ss->getUniform("occupiedThreshold");
     threshold->set(static_cast<float>(tree->getClampingThresMax()));
+    osg::Uniform* resolution = ss->getUniform("resolution");
+    resolution->set(static_cast<float>(tree->getResolution()));
 }
 
 void OctomapWrapperVisualization::updateDataIntern(
