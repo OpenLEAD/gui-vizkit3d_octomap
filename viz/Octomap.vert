@@ -19,6 +19,7 @@ uniform float resolution;
 uniform sampler2DRect cellData;
 
 in vec3 in_Position;
+in vec3 in_Normal;
 out vec4 ex_Color;
 
 void main() {
@@ -30,13 +31,30 @@ void main() {
 
     vec4 position = vec4(in_Position * data1.x, 1) + vec4(data0.x, data0.y, data0.z, 0);
     gl_Position = gl_ModelViewProjectionMatrix * position;
+
+    vec4 color;
     if (data1.y >= occupiedThreshold)
     {
-        ex_Color = colorFull;
+        color = colorFull;
     }
     else
     {
-        ex_Color = colorEmpty;
+        color = colorEmpty;
+    }
+
+    vec4 fvObjectPosition =  gl_ModelViewMatrix * gl_Vertex; 
+    
+    vec3 ViewDirection  = normalize(- fvObjectPosition.xyz); 
+    vec3 Normal         = gl_NormalMatrix * in_Normal; 
+
+    ex_Color = gl_LightModel.ambient * color;
+    for (int i = 0; i < 2; ++i)
+    {
+        vec3 LightDirection = normalize(gl_LightSource[i].position.xyz - fvObjectPosition.xyz); 
+        float NdotL = max(dot(Normal, LightDirection), 0.0); 
+        vec4 diffuse = NdotL * color * gl_LightSource[i].diffuse; 
+        vec4 ambient = color * gl_LightSource[i].ambient; 
+        ex_Color = ex_Color + diffuse + ambient;
     }
 }
 

@@ -70,15 +70,27 @@ void encodeData(osg::StateSet& stateSet,
     stateSet.addUniform(new osg::Uniform("cellData", 1));
 }
 
-void drawBox(osg::Vec3Array& vertices, osg::DrawElementsUInt& indices) {
-    vertices.push_back(osg::Vec3(-0.5, -0.5, -0.5));
-    vertices.push_back(osg::Vec3(+0.5, -0.5, -0.5));
-    vertices.push_back(osg::Vec3(-0.5, +0.5, -0.5));
-    vertices.push_back(osg::Vec3(+0.5, +0.5, -0.5));
-    vertices.push_back(osg::Vec3(-0.5, -0.5, +0.5));
-    vertices.push_back(osg::Vec3(+0.5, -0.5, +0.5));
-    vertices.push_back(osg::Vec3(-0.5, +0.5, +0.5));
-    vertices.push_back(osg::Vec3(+0.5, +0.5, +0.5));
+void drawBox(osg::Vec3Array& vertices, osg::Vec3Array& normals)
+{
+    osg::Vec3 corners[] = {
+        osg::Vec3(-0.5, -0.5, -0.5), // 0
+        osg::Vec3(+0.5, -0.5, -0.5), // 1
+        osg::Vec3(-0.5, +0.5, -0.5), // 2
+        osg::Vec3(+0.5, +0.5, -0.5), // 3
+        osg::Vec3(-0.5, -0.5, +0.5), // 4
+        osg::Vec3(+0.5, -0.5, +0.5), // 5
+        osg::Vec3(-0.5, +0.5, +0.5), // 6
+        osg::Vec3(+0.5, +0.5, +0.5)  // 7
+    };
+
+    osg::Vec3 face_normals[] = {
+        osg::Vec3( 0,  0, -1),
+        osg::Vec3( 1,  0,  0),
+        osg::Vec3( 0,  0,  1),
+        osg::Vec3(-1,  0,  0),
+        osg::Vec3( 0, -1,  0),
+        osg::Vec3( 0,  1,  0)
+    };
 
     unsigned int relativeIndices[] = {
         0, 2, 1,
@@ -94,8 +106,16 @@ void drawBox(osg::Vec3Array& vertices, osg::DrawElementsUInt& indices) {
         3, 7, 2,
         7, 6, 2
     };
-    for (int i = 0; i < 12 * 3; ++i)
-        indices.addElement(relativeIndices[i]);
+
+    for (int i = 0; i < 12; ++i)
+    {
+        vertices.push_back(corners[relativeIndices[i * 3]]);
+        vertices.push_back(corners[relativeIndices[i * 3 + 1]]);
+        vertices.push_back(corners[relativeIndices[i * 3 + 2]]);
+        normals.push_back(face_normals[i / 2]);
+        normals.push_back(face_normals[i / 2]);
+        normals.push_back(face_normals[i / 2]);
+    }
 }
 
 OctomapWrapperVisualization::OctomapWrapperVisualization()
@@ -109,15 +129,20 @@ OctomapWrapperVisualization::~OctomapWrapperVisualization() {
 static void setupGeom(osg::Geometry& geometry)
 {
     // Build the template geometry (a cube !)
-    osg::ref_ptr < osg::DrawElementsUInt > draw =
-        new osg::DrawElementsUInt(osg::PrimitiveSet::TRIANGLES);
     osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
-    drawBox(*vertices, *draw);
+    osg::ref_ptr<osg::Vec3Array> normals = new osg::Vec3Array;
+    drawBox(*vertices, *normals);
+
+    osg::ref_ptr < osg::DrawArrays > draw =
+        new osg::DrawArrays(osg::PrimitiveSet::TRIANGLES, 0, vertices->size());
 #if OSG_MIN_VERSION_REQUIRED(3,2,0)
     geometry.setVertexAttribArray(0, vertices, osg::Array::BIND_PER_VERTEX);
+    geometry.setVertexAttribArray(1, normals, osg::Array::BIND_PER_VERTEX);
 #else
     geometry.setVertexAttribArray(0, vertices);
     geometry.setVertexAttribBinding(0, osg::Geometry::BIND_PER_VERTEX);
+    geometry.setVertexAttribArray(1, normals);
+    geometry.setVertexAttribBinding(1, osg::Geometry::BIND_PER_VERTEX);
 #endif
     geometry.setUseDisplayList(false);
     geometry.setUseVertexBufferObjects(true);
@@ -144,6 +169,7 @@ osg::ref_ptr<osg::Node> OctomapWrapperVisualization::createMainNode() {
     osg::Program* program = new osg::Program;
     program->setName( "colorize" );
     program->addBindAttribLocation( "in_Position", 0 );
+    program->addBindAttribLocation( "in_Normal", 1 );
     program->addShader( osg::Shader::readShaderFile( osg::Shader::VERTEX, SHADER_DIR "/Octomap.vert" ) );
     program->addShader( osg::Shader::readShaderFile( osg::Shader::FRAGMENT, SHADER_DIR "/Octomap.frag" ) );
     ss->setAttributeAndModes(program, osg::StateAttribute::ON);
