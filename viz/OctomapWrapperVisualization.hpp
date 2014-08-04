@@ -2,10 +2,11 @@
 #define vizkit_3d_octomap_OctomapWrapperVisualization_H
 
 #include <boost/noncopyable.hpp>
-#include <vizkit/Vizkit3DPlugin.hpp>
+#include <vizkit3d/Vizkit3DPlugin.hpp>
 
+#include <base/Eigen.hpp>
 #include <octomap_wrapper/OctomapWrapper.hpp>
-#include <octomap_wrapper/conversion.hpp>
+#include <octomap_wrapper/Conversion.hpp>
 #include "octomap/OcTree.h"
 #include "octomap/AbstractOcTree.h"
 
@@ -14,10 +15,10 @@ namespace osg {
     class Geometry;
 }
 
-namespace vizkit
+namespace vizkit3d
 {
     class OctomapWrapperVisualization
-        : public vizkit::Vizkit3DPlugin<octomap_wrapper::OctomapWrapper>
+        : public vizkit3d::Vizkit3DPlugin<octomap_wrapper::OctomapWrapper>
     {
     Q_OBJECT
     public:
@@ -25,7 +26,7 @@ namespace vizkit
         ~OctomapWrapperVisualization();
 
     Q_INVOKABLE void updateData(octomap_wrapper::OctomapWrapper const &sample)
-    {vizkit::Vizkit3DPlugin<octomap_wrapper::OctomapWrapper>::updateData(sample);}
+    {vizkit3d::Vizkit3DPlugin<octomap_wrapper::OctomapWrapper>::updateData(sample);}
 
     protected:
         virtual osg::ref_ptr<osg::Node> createMainNode();
