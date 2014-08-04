@@ -24,20 +24,20 @@ void encodeData(osg::StateSet& stateSet,
     unsigned int const vectorsPerSample = 2;
     unsigned int const dataSamplesPerLine = texLineSize / vectorsPerSample;
 
-    if (cellData.size() != numInstances * vectorsPerSample * 4)
+    if (cellData.size() != numInstances * vectorsPerSample * 3)
         throw std::logic_error("cellData and numInstances mismatch");
 
     unsigned int height = (numInstances + dataSamplesPerLine - 1) / dataSamplesPerLine;
     osg::ref_ptr<osg::Image> image = new osg::Image;
-    image->allocateImage(texLineSize, height, 1, GL_RGBA, GL_FLOAT);
-    image->setInternalTextureFormat(GL_RGBA32F_ARB);
+    image->allocateImage(texLineSize, height, 1, GL_RGB, GL_FLOAT);
+    image->setInternalTextureFormat(GL_RGB32F_ARB);
 
     float * data = (float*)image->data(0);
     memcpy(data, &cellData[0], sizeof(float) * cellData.size());
 
     osg::ref_ptr<osg::TextureRectangle> texture = new osg::TextureRectangle(image);
-    texture->setInternalFormat(GL_RGBA32F_ARB);
-    texture->setSourceFormat(GL_RGBA);
+    texture->setInternalFormat(GL_RGB32F_ARB);
+    texture->setSourceFormat(GL_RGB);
     texture->setSourceType(GL_FLOAT);
     texture->setTextureSize(2, numInstances);
     texture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::NEAREST);
@@ -145,11 +145,9 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
         cellData.push_back(it.getX());
         cellData.push_back(it.getY());
         cellData.push_back(it.getZ());
-        cellData.push_back(0);
 
         cellData.push_back(it.getSize());
         cellData.push_back(it->getOccupancy());
-        cellData.push_back(0);
         cellData.push_back(0);
 
         ++count;
