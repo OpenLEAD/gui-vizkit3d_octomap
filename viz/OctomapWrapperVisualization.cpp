@@ -6,6 +6,7 @@
 #include <osg/Geode>
 #include <osg/Geometry>
 #include <osg/Point>
+#include <osg/Version>
 #include <base/Eigen.hpp>
 #include <octomap_wrapper/Conversion.hpp>
 
@@ -116,8 +117,12 @@ osg::ref_ptr<osg::Node> OctomapWrapperVisualization::createMainNode() {
         new osg::DrawElementsUInt(osg::PrimitiveSet::TRIANGLES);
     osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
     drawBox(*vertices, *draw);
-    geom->setVertexAttribArray(0, vertices);
-    geom->setVertexAttribBinding(0, osg::Geometry::BIND_PER_VERTEX);
+#if OSG_MIN_VERSION_REQUIRED(3,2,0)
+    geometry.setVertexAttribArray(0, vertices, osg::Array::BIND_PER_VERTEX);
+#else
+    geometry.setVertexAttribArray(0, vertices);
+    geometry.setVertexAttribBinding(0, osg::Geometry::BIND_PER_VERTEX);
+#endif
     draw->setNumInstances(0);
     geom->addPrimitiveSet(draw.get());
     root->addDrawable(geom);
