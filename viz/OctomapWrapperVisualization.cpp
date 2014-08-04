@@ -178,7 +178,6 @@ osg::ref_ptr<osg::Node> OctomapWrapperVisualization::createMainNode() {
 
 static void emitGeom(osg::Geode& root, unsigned int current_geometry, std::vector<float> const& cellData, unsigned int count)
 {
-    std::cout << "emitting geometry " << current_geometry << " with " << count << "cells" << std::endl;
     if (root.getNumDrawables() == current_geometry)
     {
         osg::Geometry* geom = new osg::Geometry;
