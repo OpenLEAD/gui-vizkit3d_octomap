@@ -192,9 +192,17 @@ static void emitGeom(osg::Geode& root, unsigned int current_geometry, std::vecto
 }
 
 void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
-    osg::Geode* root = dynamic_cast<osg::Geode*>(node);
     if (!tree)
         return;
+
+    osg::Geode* root = dynamic_cast<osg::Geode*>(node);
+
+    // And update the occupation threshold
+    osg::StateSet *ss = root->getOrCreateStateSet();
+    osg::Uniform* threshold = ss->getUniform("occupiedThreshold");
+    threshold->set(static_cast<float>(tree->getClampingThresMax()) - 0.01f);
+    osg::Uniform* resolution = ss->getUniform("resolution");
+    resolution->set(static_cast<float>(tree->getResolution()));
 
     // We encode the data as [x,y,z,s,p,0] where s is the size in cells and p the
     // probability
@@ -228,12 +236,6 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
     if (count != 0)
         emitGeom(*root, current_geometry, cellData, count);
 
-    // And update the occupation threshold
-    osg::StateSet *ss = root->getOrCreateStateSet();
-    osg::Uniform* threshold = ss->getUniform("occupiedThreshold");
-    threshold->set(static_cast<float>(tree->getClampingThresMax()) - 0.01f);
-    osg::Uniform* resolution = ss->getUniform("resolution");
-    resolution->set(static_cast<float>(tree->getResolution()));
 }
 
 void OctomapWrapperVisualization::updateDataIntern(
