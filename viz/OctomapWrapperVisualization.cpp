@@ -2,35 +2,57 @@
 #include "OctomapWrapperVisualization.hpp"
 #include <cstddef>
 
-#include <osg/PositionAttitudeTransform>
 #include <osg/Geode>
 #include <osg/Geometry>
 #include <osg/Point>
 #include <osg/Version>
+#include <osg/TextureRectangle>
+
 #include <base/Eigen.hpp>
 #include <octomap_wrapper/Conversion.hpp>
 
-#include <osg/ShapeDrawable>
-#include <osg/TextureRectangle>
+#include <boost/lexical_cast.hpp>
+#include <string>
+using std::string;
+using boost::lexical_cast;
 
 #include <vizkit3d/Vizkit3DHelper.hpp>
 
 using namespace vizkit3d;
 
+/**
+ * BIG FAT WARNING
+ * BIG FAT WARNING if you change these, you need to copy/paste the whole block
+ * BIG FAT WARNING into the Octomap.vert shader, and remove the 'static' prefix
+ */
+static const int TEX_SIZE        = 1024;
+static const int TEX_SAMPLES_PER_CELL  = 2;
+static const int TEX_LINE_SIZE_IN_CELLS = TEX_SIZE / TEX_SAMPLES_PER_CELL;
+static const int FLOATS_PER_TEX_SAMPLE = 3;
+static const int FLOATS_PER_CELL       =
+    TEX_SAMPLES_PER_CELL * FLOATS_PER_TEX_SAMPLE;
+static const int MAX_FLOATS_PER_TEX    =
+    TEX_SIZE * TEX_SIZE * FLOATS_PER_TEX_SAMPLE;
+/*
+ * BIG FAT WARNING
+ * BIG FAT WARNING see comment at the top of the block
+ * BIG FAT WARNING
+ **/
+
 void encodeData(osg::StateSet& stateSet,
         unsigned int numInstances,
         std::vector<float> const& cellData)
 {
-    unsigned int const texLineSize = 1024u;
-    unsigned int const vectorsPerSample = 2;
-    unsigned int const dataSamplesPerLine = texLineSize / vectorsPerSample;
-
-    if (cellData.size() != numInstances * vectorsPerSample * 3)
+    if (cellData.size() != numInstances * FLOATS_PER_TEX_SAMPLE * TEX_SAMPLES_PER_CELL)
         throw std::logic_error("cellData and numInstances mismatch");
 
-    unsigned int height = (numInstances + dataSamplesPerLine - 1) / dataSamplesPerLine;
+    unsigned int height = (numInstances + TEX_LINE_SIZE_IN_CELLS - 1)
+        / TEX_LINE_SIZE_IN_CELLS;
+    if (height > TEX_SIZE)
+        throw std::logic_error("cannot generate textures bigger than " + lexical_cast<string>(TEX_SIZE) + " (got " + lexical_cast<string>(height) + ")");
+
     osg::ref_ptr<osg::Image> image = new osg::Image;
-    image->allocateImage(texLineSize, height, 1, GL_RGB, GL_FLOAT);
+    image->allocateImage(TEX_SIZE, TEX_SIZE, 1, GL_RGB, GL_FLOAT);
     image->setInternalTextureFormat(GL_RGB32F_ARB);
 
     float * data = (float*)image->data(0);
@@ -40,7 +62,6 @@ void encodeData(osg::StateSet& stateSet,
     texture->setInternalFormat(GL_RGB32F_ARB);
     texture->setSourceFormat(GL_RGB);
     texture->setSourceType(GL_FLOAT);
-    texture->setTextureSize(2, numInstances);
     texture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::NEAREST);
     texture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::NEAREST);
     texture->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_BORDER);
@@ -84,15 +105,28 @@ OctomapWrapperVisualization::~OctomapWrapperVisualization() {
         delete tree;
 }
 
-static void setupShaders130(osg::Geometry* geometry)
+
+static void setupGeom(osg::Geometry& geometry)
 {
-    osg::StateSet *ss = geometry->getOrCreateStateSet();
-    osg::Program* program = new osg::Program;
-    program->setName( "colorize" );
-    program->addBindAttribLocation( "in_Position", 0 );
-    program->addShader( osg::Shader::readShaderFile( osg::Shader::VERTEX, SHADER_DIR "/Octomap.vert" ) );
-    program->addShader( osg::Shader::readShaderFile( osg::Shader::FRAGMENT, SHADER_DIR "/Octomap.frag" ) );
-    ss->setAttributeAndModes(program, osg::StateAttribute::ON);
+    // Build the template geometry (a cube !)
+    osg::ref_ptr < osg::DrawElementsUInt > draw =
+        new osg::DrawElementsUInt(osg::PrimitiveSet::TRIANGLES);
+    osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
+    drawBox(*vertices, *draw);
+#if OSG_MIN_VERSION_REQUIRED(3,2,0)
+    geometry.setVertexAttribArray(0, vertices, osg::Array::BIND_PER_VERTEX);
+#else
+    geometry.setVertexAttribArray(0, vertices);
+    geometry.setVertexAttribBinding(0, osg::Geometry::BIND_PER_VERTEX);
+#endif
+    geometry.setUseDisplayList(false);
+    geometry.setUseVertexBufferObjects(true);
+    geometry.addPrimitiveSet(draw);
+}
+
+osg::ref_ptr<osg::Node> OctomapWrapperVisualization::createMainNode() {
+    osg::Geode* geode = new osg::Geode;
+    osg::StateSet *ss = geode->getOrCreateStateSet();
 
     osg::Uniform* fullColor   =
         new osg::Uniform( "colorEmpty", osg::Vec4(0, 1, 0, 1));
@@ -106,42 +140,44 @@ static void setupShaders130(osg::Geometry* geometry)
     osg::Uniform* resolution   =
         new osg::Uniform( "resolution", 0.1f);
     ss->addUniform( resolution );
+
+    osg::Program* program = new osg::Program;
+    program->setName( "colorize" );
+    program->addBindAttribLocation( "in_Position", 0 );
+    program->addShader( osg::Shader::readShaderFile( osg::Shader::VERTEX, SHADER_DIR "/Octomap.vert" ) );
+    program->addShader( osg::Shader::readShaderFile( osg::Shader::FRAGMENT, SHADER_DIR "/Octomap.frag" ) );
+    ss->setAttributeAndModes(program, osg::StateAttribute::ON);
+    return geode;
 }
 
-osg::ref_ptr<osg::Node> OctomapWrapperVisualization::createMainNode() {
-    osg::Geode* root = new osg::Geode;
-    osg::Geometry* geom = new osg::Geometry;
-    setupShaders130(geom);
-    // Build the template geometry (a cube !)
-    osg::ref_ptr < osg::DrawElementsUInt > draw =
-        new osg::DrawElementsUInt(osg::PrimitiveSet::TRIANGLES);
-    osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
-    drawBox(*vertices, *draw);
-#if OSG_MIN_VERSION_REQUIRED(3,2,0)
-    geometry.setVertexAttribArray(0, vertices, osg::Array::BIND_PER_VERTEX);
-#else
-    geometry.setVertexAttribArray(0, vertices);
-    geometry.setVertexAttribBinding(0, osg::Geometry::BIND_PER_VERTEX);
-#endif
-    draw->setNumInstances(0);
-    geom->addPrimitiveSet(draw.get());
-    root->addDrawable(geom);
-    return root;
+static void emitGeom(osg::Geode& root, unsigned int current_geometry, std::vector<float> const& cellData, unsigned int count)
+{
+    std::cout << "emitting geometry " << current_geometry << " with " << count << "cells" << std::endl;
+    if (root.getNumDrawables() == current_geometry)
+    {
+        osg::Geometry* geom = new osg::Geometry;
+        setupGeom(*geom);
+        root.addDrawable(geom);
+    }
+    osg::ref_ptr<osg::Geometry> geom = dynamic_cast<osg::Geometry*>(root.getDrawable(current_geometry));
+    geom->getPrimitiveSet(0)->setNumInstances(count);
+
+    osg::StateSet *ss = geom->getOrCreateStateSet();
+    encodeData(*ss, count, cellData);
 }
 
 void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
-    osg::Geode* treeNode = dynamic_cast<osg::Geode*>(node);
-    if (!tree)
+    osg::Geode* root = dynamic_cast<osg::Geode*>(node);
+    if (!root)
         return;
-
-    osg::ref_ptr<osg::Geometry> geom =
-        dynamic_cast<osg::Geometry*>(treeNode->getDrawable(0));
 
     // We encode the data as [x,y,z,s,p,0] where s is the size in cells and p the
     // probability
     std::vector<float> cellData;
+    cellData.reserve(MAX_FLOATS_PER_TEX);
 
     unsigned int count = 0;
+    unsigned int current_geometry = 0;
 
     // Documentation states that getting the end leaf iterator is expensive
     // and should be done really only once
@@ -154,18 +190,21 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
         cellData.push_back(it.getSize());
         cellData.push_back(it->getOccupancy());
         cellData.push_back(0);
-
         ++count;
+
+        if (cellData.size() == MAX_FLOATS_PER_TEX)
+        {
+            emitGeom(*root, current_geometry, cellData, count);
+            ++current_geometry;
+            cellData.clear();
+            count = 0;
+        }
     }
-
-    geom->getPrimitiveSet(0)->setNumInstances(count);
-    geom->setUseDisplayList(false);
-    geom->setUseVertexBufferObjects(true);
-
-    osg::StateSet *ss = geom->getOrCreateStateSet();
-    encodeData(*ss, count, cellData);
+    if (count != 0)
+        emitGeom(*root, current_geometry, cellData, count);
 
     // And update the occupation threshold
+    osg::StateSet *ss = root->getOrCreateStateSet();
     osg::Uniform* threshold = ss->getUniform("occupiedThreshold");
     threshold->set(static_cast<float>(tree->getClampingThresMax()) - 0.01f);
     osg::Uniform* resolution = ss->getUniform("resolution");
