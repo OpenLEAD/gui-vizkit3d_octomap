@@ -234,8 +234,11 @@ void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
         }
     }
     if (count != 0)
+    {
         emitGeom(*root, current_geometry, cellData, count);
-
+        ++current_geometry;
+    }
+    root->removeDrawables(current_geometry, current_geometry - root->getNumDrawables());
 }
 
 void OctomapWrapperVisualization::updateDataIntern(
