@@ -116,7 +116,8 @@ osg::ref_ptr<osg::Node> OctomapWrapperVisualization::createMainNode() {
         new osg::DrawElementsUInt(osg::PrimitiveSet::TRIANGLES);
     osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
     drawBox(*vertices, *draw);
-    geom->setVertexAttribArray(0, vertices, osg::Array::BIND_PER_VERTEX);
+    geom->setVertexAttribArray(0, vertices);
+    geom->setVertexAttribBinding(0, osg::Geometry::BIND_PER_VERTEX);
     draw->setNumInstances(0);
     geom->addPrimitiveSet(draw.get());
     root->addDrawable(geom);
