@@ -193,7 +193,7 @@ static void emitGeom(osg::Geode& root, unsigned int current_geometry, std::vecto
 
 void OctomapWrapperVisualization::updateMainNode(osg::Node* node) {
     osg::Geode* root = dynamic_cast<osg::Geode*>(node);
-    if (!root)
+    if (!tree)
         return;
 
     // We encode the data as [x,y,z,s,p,0] where s is the size in cells and p the
