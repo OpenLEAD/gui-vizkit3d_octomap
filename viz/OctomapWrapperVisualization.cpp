@@ -245,7 +245,9 @@ void OctomapWrapperVisualization::updateDataIntern(
         octomap_wrapper::OctomapWrapper const& value) {
 
     delete tree;
-    tree = octomap_wrapper::binaryMsgToMap(value);
+    octomap::AbstractOcTree* abstree = octomap_wrapper::msgToMap(value);
+    tree = dynamic_cast<octomap::OcTree*>(abstree); 
+   //tree = octomap_wrapper::binaryMsgToMap(value);
 }
 
 //Macro that makes this plugin loadable in ruby, this is optional.
