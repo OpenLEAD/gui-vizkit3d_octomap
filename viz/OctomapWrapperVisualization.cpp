@@ -84,27 +84,27 @@ void drawBox(osg::Vec3Array& vertices, osg::Vec3Array& normals)
     };
 
     osg::Vec3 face_normals[] = {
-        osg::Vec3( 0,  0, -1),
         osg::Vec3( 1,  0,  0),
-        osg::Vec3( 0,  0,  1),
         osg::Vec3(-1,  0,  0),
+        osg::Vec3( 0,  1,  0),
         osg::Vec3( 0, -1,  0),
-        osg::Vec3( 0,  1,  0)
+        osg::Vec3( 0,  0,  1),
+        osg::Vec3( 0,  0, -1)
     };
 
     unsigned int relativeIndices[] = {
-        0, 2, 1,
-        2, 3, 1,
         1, 3, 5,
         3, 7, 5,
-        7, 4, 5,
-        7, 6, 4,
         6, 0, 4,
         6, 2, 0,
+        3, 7, 2,
+        7, 6, 2,
         0, 4, 1,
         4, 5, 1,
-        3, 7, 2,
-        7, 6, 2
+        7, 4, 5,
+        7, 6, 4,
+        0, 2, 1,
+        2, 3, 1
     };
 
     for (int i = 0; i < 12; ++i)
